@@ -11,6 +11,11 @@
   "license": "ISC",
   "packageManager": "pnpm@10.11.0",
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "jsdom": "^26.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.2",
+    "@types/jsdom": "^21.1.7"
   }
 }
