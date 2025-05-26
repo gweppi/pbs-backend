@@ -15,7 +15,8 @@ type PB = {
 
 type Athlete = {
    id: string | null;
-   name: string | null;
+   firstName: string | null;
+   lastName: string | null;
    dobYear: string | null;
    sex: "M" | "F" | null;
    country: string | null;
@@ -108,8 +109,10 @@ app.get("/search", async (req, res) => {
       "athleteSearch",
    )[0] as HTMLTableElement;
    const rows = table.tBodies[0].rows;
+
    const athletes: Athlete[] = [];
    for (const row of rows) {
+      const name = row.querySelector('.name a')?.textContent?.trim().replace(/[(0-9)]/g, "").trim().split(",") || new Array(2).fill('');
       const sex =
          row.querySelector("td img")?.getAttribute("src")?.includes("gender1")
             ? "M"
@@ -119,7 +122,8 @@ app.get("/search", async (req, res) => {
          id: row.querySelector(".name a")?.getAttribute("href")?.match(
             /athleteId=(\d+)/,
          )?.[1] || null,
-         name: row.querySelector(".name a")?.textContent?.trim() || null,
+         firstName: name[1].trim(),
+         lastName: name[0].trim(),
          dobYear: row.querySelector(".date")?.textContent?.trim() || null,
          sex,
          country: row.querySelector(".code")?.textContent?.trim() || null,
@@ -129,7 +133,7 @@ app.get("/search", async (req, res) => {
       athletes.push(athlete);
    }
 
-   const filtered = athletes.filter((v) => v.name !== null); // Removes first and last row which are table headers (last row onl when still more athletes are available)
+   const filtered = athletes.filter((v) => v.id != null); // Removes first and last row which are table headers (last row onl when still more athletes are available)
 
    res.status(200).json(filtered);
 });
