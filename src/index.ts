@@ -13,6 +13,15 @@ type PB = {
    name: string | null;
 };
 
+type Athlete = {
+   id: string | null;
+   name: string | null;
+   dobYear: string | null;
+   sex: "M" | "F" | null;
+   country: string | null;
+   club: string | null;
+};
+
 app.get("/", async (req, res) => {
    const ahtleteId = req.query.athleteId as string;
    if (!ahtleteId) {
@@ -76,6 +85,53 @@ app.get("/", async (req, res) => {
       pbs: pbs,
    };
    res.status(200).json(resonse);
+});
+
+app.get("/search", async (req, res) => {
+   const name = req.query.name as string;
+   if (!name) {
+      res.status(400).json({ error: "name query parameter is required" });
+      return;
+   }
+
+   // For some reason last name also filters on first name when provided.
+   const url = encodeURI(
+      `https://www.swimrankings.net/index.php?&internalRequest=athleteFind&athlete_clubId=-1&athlete_gender=-1&athlete_lastname=${name}&athlete_firstname=`,
+   );
+
+   const fetched = await fetch(url);
+   const html = await fetched.text();
+
+   const doc = new JSDOM(html).window.document;
+
+   const table = doc.getElementsByClassName(
+      "athleteSearch",
+   )[0] as HTMLTableElement;
+   const rows = table.tBodies[0].rows;
+   const athletes: Athlete[] = [];
+   for (const row of rows) {
+      const sex =
+         row.querySelector("td img")?.getAttribute("src")?.includes("gender1")
+            ? "M"
+            : "F";
+
+      const athlete: Athlete = {
+         id: row.querySelector(".name a")?.getAttribute("href")?.match(
+            /athleteId=(\d+)/,
+         )?.[1] || null,
+         name: row.querySelector(".name a")?.textContent?.trim() || null,
+         dobYear: row.querySelector(".date")?.textContent?.trim() || null,
+         sex,
+         country: row.querySelector(".code")?.textContent?.trim() || null,
+         club: row.querySelector(".club")?.textContent?.replace(/.* /g, "") ||
+            null,
+      };
+      athletes.push(athlete);
+   }
+
+   const filtered = athletes.filter((v) => v.name !== null); // Removes first and last row which are table headers (last row onl when still more athletes are available)
+
+   res.status(200).json(filtered);
 });
 
 const PORT = 8080;
