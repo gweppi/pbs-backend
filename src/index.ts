@@ -127,7 +127,7 @@ app.get("/search", async (req, res) => {
          dobYear: row.querySelector(".date")?.textContent?.trim() || null,
          sex,
          country: row.querySelector(".code")?.textContent?.trim() || null,
-         club: row.querySelector(".club")?.textContent?.replace(/.* /g, "") ||
+         club: row.querySelector(".club")?.textContent?.replace(/.* -/g, "").trim() ||
             null,
       };
       athletes.push(athlete);
