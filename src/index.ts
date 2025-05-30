@@ -11,6 +11,7 @@ type PB = {
    date: string | null;
    city: string | null;
    name: string | null;
+   styleId: string | null
 };
 
 type Athlete = {
@@ -22,6 +23,8 @@ type Athlete = {
    country: string | null;
    club: string | null;
 };
+
+type Course = "25m" | "50m"
 
 app.get("/", async (req, res) => {
    const ahtleteId = req.query.athleteId as string;
@@ -61,7 +64,10 @@ app.get("/", async (req, res) => {
    const rows = table.tBodies[0].rows;
 
    let pbs: PB[] = [];
-   for (const row of rows) {
+   for (const row of rows) {      
+      const href = row.querySelector(".event a")?.getAttribute("href")
+      const styleId = href?.match(/styleId=(\d+)/)?.[1].replace("styleId=", "") || null;
+
       const obj: PB = {
          event: row.querySelector(".event a")?.textContent?.trim() || null,
          course: row.querySelector(".course")?.textContent?.trim() || null,
@@ -70,6 +76,7 @@ app.get("/", async (req, res) => {
          date: row.querySelector(".date")?.textContent?.trim() || null,
          city: row.querySelector(".city a")?.textContent?.trim() || null,
          name: row.querySelector(".name a")?.textContent?.trim() || null,
+         styleId
       };
       pbs.push(obj);
    }
@@ -136,6 +143,66 @@ app.get("/search", async (req, res) => {
    const filtered = athletes.filter((v) => v.id != null); // Removes first and last row which are table headers (last row onl when still more athletes are available)
 
    res.status(200).json(filtered);
+});
+
+app.get("/style", async (req, res) => {
+   const styleId = req.query.styleId as string;
+   const course = req.query.course as Course;
+   const athleteId = req.query.athleteId as string;
+
+   if (!styleId) {
+      res.status(400).json({ error: "styleId query parameter is required" });
+      return;
+   }
+
+   if (!course || (course !== "25m" && course !== "50m")) {
+      res.status(400).json({ error: "course query parameter is required and must be either '25m' or '50m'" });
+      return;
+   }
+
+   if (!athleteId) {
+      res.status(400).json({ error: "athleteId query parameter is required" });
+      return;
+   }
+
+   const fetched = await fetch(
+      `https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=${athleteId}&styleId=${styleId}`,
+   );
+   const html = await fetched.text();
+
+   const doc = new JSDOM(html).window.document;
+   const twoColumnsTable = doc.getElementsByClassName(
+      "twoColumns",
+   )[0] as HTMLTableElement;
+   const columns = twoColumnsTable.tBodies[0].rows[1];
+
+   const tables = columns.querySelectorAll('tr td table') as NodeListOf<HTMLTableElement>;
+   if (tables.length != 2) {
+      res.status(500).json({ error: "Unexpected error occured" });
+      return;
+   }
+
+   const resultsTable = course === "50m" ? tables[0] : tables[1];
+   const results: Omit<PB, 'name'>[] = [];
+
+   for (const row of resultsTable.tBodies[0].rows) {
+      const event = doc.querySelector("table tr td b")?.textContent?.replace("Personal rankings for ", "").trim() || null;
+      const result: Omit<PB, 'name'> = {
+         time: row.querySelector(".time a")?.textContent?.replace(/[A-Z]/, "").trim() || null,
+         pts: row.querySelector(".code")?.textContent?.trim() || null,
+         date: row.querySelector(".date")?.textContent?.trim() || null,
+         city: row.querySelector(".city a")?.textContent?.trim() || null,
+         course,
+         styleId,
+         event
+
+      }
+      results.push(result);
+   }
+
+   results.shift(); // Remove first row which is table header
+
+   res.status(200).json(results);
 });
 
 const PORT = 8080;
