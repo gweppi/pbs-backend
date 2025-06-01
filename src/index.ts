@@ -1,5 +1,5 @@
 import express from "express";
-import { JSDOM } from "jsdom";
+import { parseHTML } from "linkedom";
 
 const app = express();
 
@@ -34,11 +34,11 @@ app.get("/", async (req, res) => {
    }
 
    const fetched = await fetch(
-      `https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=${ahtleteId}&athletePage=PBEST`,
+      `https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=${ahtleteId}`,
    );
    const html = await fetched.text();
 
-   const doc = new JSDOM(html).window.document;
+   const doc = parseHTML(html).window.document;
 
    // Check if the athlete exists, if not, td with class 'name' exists. As double check check if contains string specified below.
    if (
@@ -61,7 +61,7 @@ app.get("/", async (req, res) => {
    const table = doc.getElementsByClassName(
       "athleteBest",
    )[0] as HTMLTableElement;
-   const rows = table.tBodies[0].rows;
+   const rows = table.children;
 
    let pbs: PB[] = [];
    for (const row of rows) {      
@@ -110,12 +110,12 @@ app.get("/search", async (req, res) => {
    const fetched = await fetch(url);
    const html = await fetched.text();
 
-   const doc = new JSDOM(html).window.document;
+   const doc = parseHTML(html).window.document;
 
    const table = doc.getElementsByClassName(
       "athleteSearch",
    )[0] as HTMLTableElement;
-   const rows = table.tBodies[0].rows;
+   const rows = table.children;
 
    const athletes: Athlete[] = [];
    for (const row of rows) {
@@ -170,11 +170,11 @@ app.get("/style", async (req, res) => {
    );
    const html = await fetched.text();
 
-   const doc = new JSDOM(html).window.document;
+   const doc = parseHTML(html).window.document;
    const twoColumnsTable = doc.getElementsByClassName(
       "twoColumns",
    )[0] as HTMLTableElement;
-   const columns = twoColumnsTable.tBodies[0].rows[1];
+   const columns = twoColumnsTable.children[1];
 
    const tables = columns.querySelectorAll('tr td table') as NodeListOf<HTMLTableElement>;
    if (tables.length != 2) {
@@ -185,7 +185,7 @@ app.get("/style", async (req, res) => {
    const resultsTable = course === "50m" ? tables[0] : tables[1];
    const results: Omit<PB, 'name'>[] = [];
 
-   for (const row of resultsTable.tBodies[0].rows) {
+   for (const row of resultsTable.children) {
       const event = doc.querySelector("table tr td b")?.textContent?.replace("Personal rankings for ", "").trim() || null;
       const result: Omit<PB, 'name'> = {
          time: row.querySelector(".time a")?.textContent?.replace(/[A-Z]/, "").trim() || null,
