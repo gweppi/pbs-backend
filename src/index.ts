@@ -1,30 +1,8 @@
 import express from "express";
-import { parseHTML } from "linkedom";
+import getDocument from "./utils";
+import { Athlete, PB, Course } from "./definitions";
 
 const app = express();
-
-type PB = {
-   event: string | null;
-   course: string | null;
-   time: string | null;
-   pts: string | null;
-   date: string | null;
-   city: string | null;
-   name: string | null;
-   styleId: string | null
-};
-
-type Athlete = {
-   id: string | null;
-   firstName: string | null;
-   lastName: string | null;
-   dobYear: string | null;
-   sex: "M" | "F" | null;
-   country: string | null;
-   club: string | null;
-};
-
-type Course = "25m" | "50m"
 
 app.get("/", async (req, res) => {
    const ahtleteId = req.query.athleteId as string;
@@ -33,12 +11,9 @@ app.get("/", async (req, res) => {
       return;
    }
 
-   const fetched = await fetch(
+   const doc = await getDocument(
       `https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=${ahtleteId}`,
    );
-   const html = await fetched.text();
-
-   const doc = parseHTML(html).window.document;
 
    // Check if the athlete exists, if not, td with class 'name' exists. As double check check if contains string specified below.
    if (
@@ -64,9 +39,10 @@ app.get("/", async (req, res) => {
    const rows = table.children;
 
    let pbs: PB[] = [];
-   for (const row of rows) {      
-      const href = row.querySelector(".event a")?.getAttribute("href")
-      const styleId = href?.match(/styleId=(\d+)/)?.[1].replace("styleId=", "") || null;
+   for (const row of rows) {
+      const href = row.querySelector(".event a")?.getAttribute("href");
+      const styleId =
+         href?.match(/styleId=(\d+)/)?.[1].replace("styleId=", "") || null;
 
       const obj: PB = {
          event: row.querySelector(".event a")?.textContent?.trim() || null,
@@ -76,7 +52,7 @@ app.get("/", async (req, res) => {
          date: row.querySelector(".date")?.textContent?.trim() || null,
          city: row.querySelector(".city a")?.textContent?.trim() || null,
          name: row.querySelector(".name a")?.textContent?.trim() || null,
-         styleId
+         styleId,
       };
       pbs.push(obj);
    }
@@ -107,10 +83,7 @@ app.get("/search", async (req, res) => {
       `https://www.swimrankings.net/index.php?&internalRequest=athleteFind&athlete_clubId=-1&athlete_gender=-1&athlete_lastname=${name}&athlete_firstname=`,
    );
 
-   const fetched = await fetch(url);
-   const html = await fetched.text();
-
-   const doc = parseHTML(html).window.document;
+   const doc = await getDocument(url);
 
    const table = doc.getElementsByClassName(
       "athleteSearch",
@@ -119,7 +92,11 @@ app.get("/search", async (req, res) => {
 
    const athletes: Athlete[] = [];
    for (const row of rows) {
-      const name = row.querySelector('.name a')?.textContent?.trim().replace(/[(0-9)]/g, "").trim().split(",") || new Array(2).fill('');
+      const name =
+         row.querySelector(".name a")?.textContent?.trim().replace(
+            /[(0-9)]/g,
+            "",
+         ).trim().split(",") || new Array(2).fill("");
       const sex =
          row.querySelector("td img")?.getAttribute("src")?.includes("gender1")
             ? "M"
@@ -134,7 +111,9 @@ app.get("/search", async (req, res) => {
          dobYear: row.querySelector(".date")?.textContent?.trim() || null,
          sex,
          country: row.querySelector(".code")?.textContent?.trim() || null,
-         club: row.querySelector(".club")?.textContent?.replace(/.* -/g, "").trim() ||
+         club:
+            row.querySelector(".club")?.textContent?.replace(/.* -/g, "")
+               .trim() ||
             null,
       };
       athletes.push(athlete);
@@ -156,7 +135,10 @@ app.get("/style", async (req, res) => {
    }
 
    if (!course || (course !== "25m" && course !== "50m")) {
-      res.status(400).json({ error: "course query parameter is required and must be either '25m' or '50m'" });
+      res.status(400).json({
+         error:
+            "course query parameter is required and must be either '25m' or '50m'",
+      });
       return;
    }
 
@@ -165,38 +147,43 @@ app.get("/style", async (req, res) => {
       return;
    }
 
-   const fetched = await fetch(
+   const doc = await getDocument(
       `https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=${athleteId}&styleId=${styleId}`,
    );
-   const html = await fetched.text();
 
-   const doc = parseHTML(html).window.document;
    const twoColumnsTable = doc.getElementsByClassName(
       "twoColumns",
    )[0] as HTMLTableElement;
    const columns = twoColumnsTable.children[1];
 
-   const tables = columns.querySelectorAll('tr td table') as NodeListOf<HTMLTableElement>;
+   const tables = columns.querySelectorAll("tr td table") as NodeListOf<
+      HTMLTableElement
+   >;
    if (tables.length != 2) {
       res.status(500).json({ error: "Unexpected error occured" });
       return;
    }
 
    const resultsTable = course === "50m" ? tables[0] : tables[1];
-   const results: Omit<PB, 'name'>[] = [];
+   const results: Omit<PB, "name">[] = [];
 
    for (const row of resultsTable.children) {
-      const event = doc.querySelector("table tr td b")?.textContent?.replace("Personal rankings for ", "").trim() || null;
-      const result: Omit<PB, 'name'> = {
-         time: row.querySelector(".time a")?.textContent?.replace(/[A-Z]/, "").trim() || null,
+      const event =
+         doc.querySelector("table tr td b")?.textContent?.replace(
+            "Personal rankings for ",
+            "",
+         ).trim() || null;
+      const result: Omit<PB, "name"> = {
+         time:
+            row.querySelector(".time a")?.textContent?.replace(/[A-Z]/, "")
+               .trim() || null,
          pts: row.querySelector(".code")?.textContent?.trim() || null,
          date: row.querySelector(".date")?.textContent?.trim() || null,
          city: row.querySelector(".city a")?.textContent?.trim() || null,
          course,
          styleId,
-         event
-
-      }
+         event,
+      };
       results.push(result);
    }
 
