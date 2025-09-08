@@ -1,6 +1,6 @@
 import express from "express";
 import getDocument from "./utils";
-import { Athlete, PB, Course } from "./definitions";
+import { Athlete, Course, PB } from "./definitions";
 
 const app = express();
 
@@ -11,64 +11,68 @@ app.get("/", async (req, res) => {
       return;
    }
 
-   const doc = await getDocument(
-      `https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=${ahtleteId}`,
-   );
+   try {
+      const doc = await getDocument(
+         `https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=${ahtleteId}`,
+      );
 
-   // Check if the athlete exists, if not, td with class 'name' exists. As double check check if contains string specified below.
-   if (
-      doc.querySelector(".name")?.textContent?.includes("Unknown athlete id")
-   ) {
-      res.status(404).json({ error: "Athlete not found" });
-      return;
-   }
+      // Check if the athlete exists, if not, td with class 'name' exists. As double check check if contains string specified below.
+      if (
+         doc.querySelector(".name")?.textContent?.includes("Unknown athlete id")
+      ) {
+         res.status(404).json({ error: "Athlete not found" });
+         return;
+      }
 
-   const info = doc.querySelector("#name")?.textContent;
+      const info = doc.querySelector("#name")?.textContent;
 
-   const name = info?.trim().replace(/[(0-9)]/g, "").trim().split(",") ||
-      ["", ""];
+      const name = info?.trim().replace(/[(0-9)]/g, "").trim().split(",") ||
+         ["", ""];
 
-   const dobYear = info?.trim().match(/[0-9]*/g)?.filter((v) => v != "")[0];
+      const dobYear = info?.trim().match(/[0-9]*/g)?.filter((v) => v != "")[0];
 
-   const lastName = name[0].trim();
-   const firstName = name[1].trim();
+      const lastName = name[0].trim();
+      const firstName = name[1].trim();
 
-   const table = doc.getElementsByClassName(
-      "athleteBest",
-   )[0] as HTMLTableElement;
-   const rows = table.children;
+      const table = doc.getElementsByClassName(
+         "athleteBest",
+      )[0] as HTMLTableElement;
+      const rows = table.children;
 
-   let pbs: PB[] = [];
-   for (const row of rows) {
-      const href = row.querySelector(".event a")?.getAttribute("href");
-      const styleId =
-         href?.match(/styleId=(\d+)/)?.[1].replace("styleId=", "") || null;
+      let pbs: PB[] = [];
+      for (const row of rows) {
+         const href = row.querySelector(".event a")?.getAttribute("href");
+         const styleId =
+            href?.match(/styleId=(\d+)/)?.[1].replace("styleId=", "") || null;
 
-      const obj: PB = {
-         event: row.querySelector(".event a")?.textContent?.trim() || null,
-         course: row.querySelector(".course")?.textContent?.trim() || null,
-         time: row.querySelector(".time")?.textContent?.trim() || null,
-         pts: row.querySelector(".code")?.textContent?.trim() || null,
-         date: row.querySelector(".date")?.textContent?.trim() || null,
-         city: row.querySelector(".city a")?.textContent?.trim() || null,
-         name: row.querySelector(".name a")?.textContent?.trim() || null,
-         styleId,
+         const obj: PB = {
+            event: row.querySelector(".event a")?.textContent?.trim() || null,
+            course: row.querySelector(".course")?.textContent?.trim() || null,
+            time: row.querySelector(".time")?.textContent?.trim() || null,
+            pts: row.querySelector(".code")?.textContent?.trim() || null,
+            date: row.querySelector(".date")?.textContent?.trim() || null,
+            city: row.querySelector(".city a")?.textContent?.trim() || null,
+            name: row.querySelector(".name a")?.textContent?.trim() || null,
+            styleId,
+         };
+         pbs.push(obj);
+      }
+
+      pbs.shift(); // First row is table header, remove it
+
+      const resonse = {
+         info: {
+            id: ahtleteId,
+            firstName,
+            lastName,
+            dobYear,
+         },
+         pbs: pbs,
       };
-      pbs.push(obj);
+      res.status(200).json(resonse);
+   } catch (error) {
+      res.status(500).send(error);
    }
-
-   pbs.shift(); // First row is table header, remove it
-
-   const resonse = {
-      info: {
-         id: ahtleteId,
-         firstName,
-         lastName,
-         dobYear,
-      },
-      pbs: pbs,
-   };
-   res.status(200).json(resonse);
 });
 
 app.get("/search", async (req, res) => {
@@ -78,50 +82,53 @@ app.get("/search", async (req, res) => {
       return;
    }
 
-   // For some reason last name also filters on first name when provided.
-   const url = encodeURI(
-      `https://www.swimrankings.net/index.php?&internalRequest=athleteFind&athlete_clubId=-1&athlete_gender=-1&athlete_lastname=${name}&athlete_firstname=`,
-   );
+   try {
+      // For some reason last name also filters on first name when provided.
+      const url = encodeURI(
+         `https://www.swimrankings.net/index.php?&internalRequest=athleteFind&athlete_clubId=-1&athlete_gender=-1&athlete_lastname=${name}&athlete_firstname=`,
+      );
 
-   const doc = await getDocument(url);
+      const doc = await getDocument(url);
 
-   const table = doc.getElementsByClassName(
-      "athleteSearch",
-   )[0] as HTMLTableElement;
-   const rows = table.children;
+      const table = doc.getElementsByClassName(
+         "athleteSearch",
+      )[0] as HTMLTableElement;
+      const rows = table.children;
 
-   const athletes: Athlete[] = [];
-   for (const row of rows) {
-      const name =
-         row.querySelector(".name a")?.textContent?.trim().replace(
+      const athletes: Athlete[] = [];
+      for (const row of rows) {
+         const name = row.querySelector(".name a")?.textContent?.trim().replace(
             /[(0-9)]/g,
             "",
          ).trim().split(",") || new Array(2).fill("");
-      const sex =
-         row.querySelector("td img")?.getAttribute("src")?.includes("gender1")
+         const sex = row.querySelector("td img")?.getAttribute("src")?.includes(
+               "gender1",
+            )
             ? "M"
             : "F";
 
-      const athlete: Athlete = {
-         id: row.querySelector(".name a")?.getAttribute("href")?.match(
-            /athleteId=(\d+)/,
-         )?.[1] || null,
-         firstName: name[1].trim(),
-         lastName: name[0].trim(),
-         dobYear: row.querySelector(".date")?.textContent?.trim() || null,
-         sex,
-         country: row.querySelector(".code")?.textContent?.trim() || null,
-         club:
-            row.querySelector(".club")?.textContent?.replace(/.* -/g, "")
+         const athlete: Athlete = {
+            id: row.querySelector(".name a")?.getAttribute("href")?.match(
+               /athleteId=(\d+)/,
+            )?.[1] || null,
+            firstName: name[1].trim(),
+            lastName: name[0].trim(),
+            dobYear: row.querySelector(".date")?.textContent?.trim() || null,
+            sex,
+            country: row.querySelector(".code")?.textContent?.trim() || null,
+            club: row.querySelector(".club")?.textContent?.replace(/.* -/g, "")
                .trim() ||
-            null,
-      };
-      athletes.push(athlete);
+               null,
+         };
+         athletes.push(athlete);
+      }
+
+      const filtered = athletes.filter((v) => v.id != null); // Removes first and last row which are table headers (last row onl when still more athletes are available)
+
+      res.status(200).json(filtered);
+   } catch (error) {
+      res.status(500).send(error);
    }
-
-   const filtered = athletes.filter((v) => v.id != null); // Removes first and last row which are table headers (last row onl when still more athletes are available)
-
-   res.status(200).json(filtered);
 });
 
 app.get("/style", async (req, res) => {
@@ -147,53 +154,61 @@ app.get("/style", async (req, res) => {
       return;
    }
 
-   const doc = await getDocument(
-      `https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=${athleteId}&styleId=${styleId}`,
-   );
+   try {
+      const doc = await getDocument(
+         `https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=${athleteId}&styleId=${styleId}`,
+      );
 
-   const twoColumnsTable = doc.getElementsByClassName(
-      "twoColumns",
-   )[0] as HTMLTableElement;
-   const columns = twoColumnsTable.children[1];
+      const twoColumnsTable = doc.getElementsByClassName(
+         "twoColumns",
+      )[0] as HTMLTableElement;
+      const columns = twoColumnsTable.children[1];
 
-   const tables = columns.querySelectorAll("tr td table") as NodeListOf<
-      HTMLTableElement
-   >;
-   if (tables.length != 2) {
-      res.status(500).json({ error: "Unexpected error occured" });
-      return;
-   }
+      const tables = columns.querySelectorAll("tr td table") as NodeListOf<
+         HTMLTableElement
+      >;
+      if (tables.length != 2) {
+         res.status(500).json({ error: "Unexpected error occured" });
+         return;
+      }
 
-   const resultsTable = course === "50m" ? tables[0] : tables[1];
-   const results: Omit<PB, "name">[] = [];
+      const resultsTable = course === "50m" ? tables[0] : tables[1];
+      const results: Omit<PB, "name">[] = [];
 
-   for (const row of resultsTable.children) {
-      const event =
-         doc.querySelector("table tr td b")?.textContent?.replace(
+      for (const row of resultsTable.children) {
+         const event = doc.querySelector("table tr td b")?.textContent?.replace(
             "Personal rankings for ",
             "",
          ).trim() || null;
-      const result: Omit<PB, "name"> = {
-         time:
-            row.querySelector(".time a")?.textContent?.replace(/[A-Z]/, "")
-               .trim() || null,
-         pts: row.querySelector(".code")?.textContent?.trim() || null,
-         date: row.querySelector(".date")?.textContent?.trim() || null,
-         city: row.querySelector(".city a")?.textContent?.trim() || null,
-         course,
-         styleId,
-         event,
-      };
-      results.push(result);
+         const result: Omit<PB, "name"> = {
+            time:
+               row.querySelector(".time a")?.textContent?.replace(/[A-Z]/, "")
+                  .trim() || null,
+            pts: row.querySelector(".code")?.textContent?.trim() || null,
+            date: row.querySelector(".date")?.textContent?.trim() || null,
+            city: row.querySelector(".city a")?.textContent?.trim() || null,
+            course,
+            styleId,
+            event,
+         };
+         results.push(result);
+      }
+
+      results.shift(); // Remove first row which is table header
+
+      res.status(200).json(results);
+   } catch (error) {
+      res.status(500).send(error);
    }
-
-   results.shift(); // Remove first row which is table header
-
-   res.status(200).json(results);
 });
 
 const PORT = 8080;
-app.listen(PORT, (e) => {
-   if (e) console.error(e);
-   else console.log(`Listening on port: ${PORT}`);
+app.listen(PORT, async (e) => {
+   if (e) {
+      console.error(e);
+      return;
+   }
+   const ifconfig = await fetch("https://ifconfig.me/ip");
+   const ip = await ifconfig.text();
+   console.info(`Service is now listening on port ${PORT} with ip ${ip}`);
 });
