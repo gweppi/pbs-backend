@@ -1,8 +1,12 @@
 import express from "express";
 import getDocument from "./utils";
 import { Athlete, Course, PB } from "./definitions";
+import cors from 'cors'
 
 const app = express();
+
+// Enable CORS
+app.use(cors())
 
 app.get("/", async (req, res) => {
    const ahtleteId = req.query.athleteId as string;

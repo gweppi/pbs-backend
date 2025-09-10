@@ -14,10 +14,12 @@
   "license": "ISC",
   "packageManager": "pnpm@10.11.0",
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^5.1.0",
     "linkedom": "^0.18.10"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.2",
     "@types/jsdom": "^21.1.7",
     "tsx": "^4.19.4",
