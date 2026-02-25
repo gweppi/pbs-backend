@@ -1,7 +1,8 @@
 import { parseHTML } from "linkedom";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
 
 const browser = await puppeteer.launch({
+    executablePath: "/usr/bin/chromium",
     args: ["--no-sandbox"]
 });
 

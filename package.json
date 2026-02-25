@@ -17,7 +17,7 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "linkedom": "^0.18.10",
-    "puppeteer": "^24.37.5"
+    "puppeteer-core": "^24.37.5"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

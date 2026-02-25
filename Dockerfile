@@ -10,8 +10,8 @@ FROM oven/bun:alpine
 WORKDIR /dist
 COPY --from=build /app/dist .
 
+# Downloads chrome so puppeteer can use it
 RUN apk add chromium
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 EXPOSE 8080
 CMD [ "bun", "index.js" ]
