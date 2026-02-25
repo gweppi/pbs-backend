@@ -9,5 +9,9 @@ RUN bun run build
 FROM oven/bun:alpine
 WORKDIR /dist
 COPY --from=build /app/dist .
+
+RUN apk add chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
 EXPOSE 8080
 CMD [ "bun", "index.js" ]

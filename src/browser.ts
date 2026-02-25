@@ -1,7 +1,10 @@
 import { parseHTML } from "linkedom";
 import puppeteer from "puppeteer";
 
-const browser = await puppeteer.launch();
+const browser = await puppeteer.launch({
+    args: ["--no-sandbox"]
+});
+
 const page = await browser.newPage();
 
 export default async function getDocument(url: string) {
