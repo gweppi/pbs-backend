@@ -1,5 +1,5 @@
 import express from "express";
-import getDocument from "./browser";
+import getDocument, { setup } from "./browser";
 import { Athlete, Course, PB } from "./definitions";
 import cors from 'cors'
 
@@ -211,6 +211,8 @@ app.get("/style", async (req, res) => {
 
 const PORT = 8080;
 app.listen(PORT, async (e) => {
+    // setup the browser
+    await setup()
     if (e) {
         console.error(e);
         return;

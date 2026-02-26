@@ -1,14 +1,21 @@
 import { parseHTML } from "linkedom";
-import puppeteer from "puppeteer-core";
+import puppeteer, { Browser, Page } from "puppeteer-core";
 
-const browser = await puppeteer.launch({
-    executablePath: "/usr/bin/chromium",
-    args: ["--no-sandbox"]
-});
+let browser: Browser | null = null;
+let page: Page | null = null;
 
-const page = await browser.newPage();
+export async function setup() {
+    browser = await puppeteer.launch({
+        executablePath: "/usr/bin/chromium",
+        args: ["--no-sandbox"]
+    });
+
+    page = await browser.newPage();
+}
 
 export default async function getDocument(url: string) {
+    if (!browser || !page) throw new Error("Browser and page not initialized.")
+
     const response = await page.goto(url);
 
     if (!response || !response.ok) {

@@ -1,17 +1,14 @@
-# Build step
-FROM oven/bun:alpine AS build
-WORKDIR /app
-COPY . .
-RUN bun install --frozen-lockfile
-RUN bun run build
+FROM node:24-alpine
 
-# Run step
-FROM oven/bun:alpine
-WORKDIR /dist
-COPY --from=build /app/dist .
-
-# Downloads chrome so puppeteer can use it
+#Install version of chrome corresponding with puppeteer-core
+RUN apk update && apk upgrade
 RUN apk add chromium
 
+WORKDIR /app
+COPY . .
+
+RUN npm install --frozen-lockfile
+RUN npm run build
+
 EXPOSE 8080
-CMD [ "bun", "index.js" ]
+CMD [ "node", "dist/index.js" ]
