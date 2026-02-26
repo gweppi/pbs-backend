@@ -7,7 +7,7 @@ RUN apk add chromium
 WORKDIR /app
 COPY . .
 
-RUN npm install --frozen-lockfile
+RUN npm install
 RUN npm run build
 
 EXPOSE 8080
